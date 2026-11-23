@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payoff explorer: Blue, Orange and the risky asset</title>
+  <meta name="description" content="Final amount by state of the world as a function of the tokens put in the risky asset.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <h1>Payoff explorer</h1>
+      <p class="sub">Final amount in each state as a function of the tokens put in the risky asset</p>
+    </div>
+    <div class="settings">
+      <label class="field">Token value
+        <span class="iw prefix"><span class="adorn">$</span><input id="tokenValue" type="number" min="0" step="any" inputmode="decimal" aria-describedby="tokenHint"></span>
+        <small class="hint" id="tokenHint"></small>
+      </label>
+      <label class="field">Show amounts in
+        <select id="unit">
+          <option value="tokens">Tokens</option>
+          <option value="dollars">Dollars</option>
+        </select>
+        <small class="hint">&nbsp;</small>
+      </label>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="panel editor-panel" aria-labelledby="profilesTitle">
+      <div class="panel-head">
+        <h2 id="profilesTitle">Profiles</h2>
+        <div class="btns tight">
+          <button type="button" id="addProfile">Add profile</button>
+          <button type="button" id="dupProfile">Duplicate</button>
+          <button type="button" id="delProfile">Delete</button>
+        </div>
+      </div>
+      <ul id="profileList" class="profile-list"></ul>
+      <div id="editor"></div>
+      <div class="file-btns">
+        <button type="button" id="exportBtn">Export profiles (JSON)</button>
+        <button type="button" id="importBtn">Import profiles</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+        <button type="button" id="resetBtn">Reset to examples</button>
+      </div>
+      <p id="fileMsg" class="msg" aria-live="polite"></p>
+    </section>
+
+    <section class="panel viewer-panel" aria-label="Charts">
+      <div class="view-tabs" id="viewTabs" role="group" aria-label="View"></div>
+      <div class="view-opts">
+        <label id="meanOpt" class="check"><input type="checkbox" id="showMean"> Show mean</label>
+        <label id="evalOpt" class="inline-field">Evaluate at x =
+          <span class="iw tok"><input id="evalX" type="number" min="0" step="any" inputmode="decimal"><span class="adorn">tokens</span></span>
+        </label>
+        <button type="button" id="pngBtn">Download PNG</button>
+      </div>
+      <div id="legend" class="legend"></div>
+      <div id="chartWrap" class="chart-wrap">
+        <canvas id="mainChart" role="img" aria-label="Payoff chart">Chart of final amounts by state.</canvas>
+      </div>
+      <div id="multiples" class="multiples"></div>
+      <div id="tableWrap" class="table-wrap"></div>
+      <p id="viewNote" class="msg" aria-live="polite"></p>
+    </section>
+  </div>
+
+  <footer>
+    <p>Final amount in state <i>s</i> = Blue<sub>s</sub> + (E − x)(1 + c<sub>s</sub>) + x(1 + r<sub>s</sub>), where E is the Orange endowment, x the tokens in the risky asset, r<sub>s</sub> the asset return and c<sub>s</sub> the return on uninvested tokens (0% means they are kept as cash).</p>
+    <p>Your profiles are saved in this browser only. Use “Export profiles” to keep a copy or move them to another computer.</p>
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
