@@ -54,28 +54,38 @@
     id: uid(), name, color, endowment: 100, maxInvest: 100, compare: true, states,
   });
 
+  // Default profiles. Every profile has the same four equally likely states, A to D:
+  // Blue is high in A and B and low in C and D; only the asset return pattern changes.
   function examples() {
     return [
       makeProfile('Fixed Blue', [
-        makeState('Asset up', 50, 2000, 250),
-        makeState('Asset down', 50, 2000, -100),
+        makeState('A', 25, 2000, 250),
+        makeState('B', 25, 2000, -100),
+        makeState('C', 25, 2000, 250),
+        makeState('D', 25, 2000, -100),
       ], 0),
       makeProfile('Correlation +1', [
-        makeState('Blue high, asset up', 50, 2200, 250),
-        makeState('Blue low, asset down', 50, 1800, -100),
+        makeState('A', 25, 2200, 250),
+        makeState('B', 25, 2200, 250),
+        makeState('C', 25, 1800, -100),
+        makeState('D', 25, 1800, -100),
       ], 1),
       makeProfile('Correlation 0', [
-        makeState('Blue high, asset up', 25, 2200, 250),
-        makeState('Blue high, asset down', 25, 2200, -100),
-        makeState('Blue low, asset up', 25, 1800, 250),
-        makeState('Blue low, asset down', 25, 1800, -100),
+        makeState('A', 25, 2200, 250),
+        makeState('B', 25, 2200, -100),
+        makeState('C', 25, 1800, 250),
+        makeState('D', 25, 1800, -100),
       ], 2),
       makeProfile('Correlation −1', [
-        makeState('Blue high, asset down', 50, 2200, -100),
-        makeState('Blue low, asset up', 50, 1800, 250),
+        makeState('A', 25, 2200, -100),
+        makeState('B', 25, 2200, -100),
+        makeState('C', 25, 1800, 250),
+        makeState('D', 25, 1800, 250),
       ], 3),
     ];
   }
+
+  const stateName = (i) => (i < 26 ? String.fromCharCode(65 + i) : `State ${i + 1}`);
 
   function defaultModel() {
     const profiles = examples();
@@ -721,7 +731,7 @@
     const act = b.dataset.act;
     if (act === 'addState') {
       const last = p.states[p.states.length - 1];
-      p.states.push(makeState(`State ${p.states.length + 1}`, 0, last && isNum(last.blue) ? last.blue : 2000, 0, 0));
+      p.states.push(makeState(stateName(p.states.length), 0, last && isNum(last.blue) ? last.blue : 2000, 0, 0));
     } else if (act === 'equalize') {
       const n = p.states.length;
       p.states.forEach((s) => { s.prob = Math.round((100 / n) * 10000) / 10000; });
@@ -759,8 +769,10 @@
 
   $('addProfile').addEventListener('click', () => {
     const p = makeProfile(`Profile ${M.profiles.length + 1}`, [
-      makeState('State 1', 50, 2000, 250),
-      makeState('State 2', 50, 2000, -100),
+      makeState('A', 25, 2000, 250),
+      makeState('B', 25, 2000, -100),
+      makeState('C', 25, 2000, 250),
+      makeState('D', 25, 2000, -100),
     ], nextColor());
     M.profiles.push(p);
     M.selected = p.id;
