@@ -23,6 +23,10 @@ tokens (0% means they are kept as cash).
 - **Summary table**: the marginal distribution at a chosen x, plus mean, standard deviation
   and ranges.
 
+The “x axis in” menu shows x in tokens, as a % of the Orange endowment, or as a % of the max
+in the risky asset. Use a % scale to compare profiles with different numbers of tokens; in the
+summary table, “Evaluate at x” then takes a percentage too.
+
 Tick or untick “Compare” next to a profile to include it in the four comparison views.
 Profiles are saved in your browser's local storage. Use “Export profiles” and “Import
 profiles” to keep a copy or move them to another computer.

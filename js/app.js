@@ -96,6 +96,7 @@
       view: 'single',
       showMean: true,
       evalX: 100,
+      xScale: 'tokens',
     };
   }
 
@@ -144,6 +145,7 @@
         m.showMean = saved.showMean !== false;
         const ex = toNum(saved.evalX);
         m.evalX = ex !== null ? ex : 100;
+        m.xScale = ['tokens', 'pctE', 'pctMax'].includes(saved.xScale) ? saved.xScale : 'tokens';
         return m;
       }
     } catch (e) {
@@ -213,6 +215,19 @@
   const fmtUSD = (tokens) => (tokenValue() === null ? '' : fmtMoney(tokens * tokenValue()));
   const fmtAmt = (v) => (inDollars() ? fmtMoney(v) : fmtNum(v));
   const fmtPct = (w) => fmtNum(w * 100, 2) + '%';
+
+  // ---------- x axis scale ----------
+  // 'tokens': x in tokens; 'pctE': x as % of the Orange endowment; 'pctMax': x as % of the max in the risky asset.
+  const xIsPct = () => M.xScale === 'pctE' || M.xScale === 'pctMax';
+  const xDen = (p) => (M.xScale === 'pctE' ? p.endowment : p.maxInvest);
+  const xScaleOk = (p) => !xIsPct() || xDen(p) > 0;
+  const xDisp = (p, x) => (xIsPct() ? (x / xDen(p)) * 100 : x);
+  const xFromDisp = (p, v) => (xIsPct() ? (v / 100) * xDen(p) : v);
+  const fmtX = (v) => (xIsPct() ? `${fmtNum(v)}%` : `${fmtNum(v)} tokens`);
+  const xAxisTitle = () => ({
+    pctE: 'Share of the Orange endowment in the risky asset (%)',
+    pctMax: 'Share of the max in the risky asset (%)',
+  }[M.xScale] || 'Tokens in the risky asset (x)');
 
   function niceStep(range) {
     if (!(range > 0)) return 1;
@@ -382,7 +397,7 @@
         legend: { display: false },
         tooltip: {
           callbacks: {
-            title: title || ((items) => (items.length ? `x = ${fmtNum(items[0].parsed.x)} tokens` : '')),
+            title: title || ((items) => (items.length ? `x = ${fmtX(items[0].parsed.x)}` : '')),
             label: label || ((ctx) => `${ctx.dataset.label}: ${fmtAmt(ctx.parsed.y)}`),
           },
         },
@@ -403,7 +418,7 @@
       const col = colorFor(i);
       return {
         label: `${prefix}${s.label || 'State ' + (i + 1)} (${fmtPct(weight(p, s))})`,
-        data: xs.map((x) => ({ x, y: conv(payoff(p, s, x)) })),
+        data: xs.map((x) => ({ x: xDisp(p, x), y: conv(payoff(p, s, x)) })),
         borderColor: col,
         backgroundColor: col,
         borderDash: dashFor(i),
@@ -419,7 +434,7 @@
     const xs = sample(p.maxInvest, 20);
     return {
       label: `${prefix}Mean`,
-      data: xs.map((x) => ({ x, y: conv(moments(p, x).mean) })),
+      data: xs.map((x) => ({ x: xDisp(p, x), y: conv(moments(p, x).mean) })),
       borderColor: color,
       backgroundColor: color,
       borderDash: MEAN_DASH,
@@ -437,11 +452,19 @@
 
   function comparedSplit() {
     const c = M.profiles.filter((p) => p.compare);
-    return { ok: c.filter(profileOk), skipped: c.filter((p) => !profileOk(p)) };
+    const usable = (p) => profileOk(p) && xScaleOk(p);
+    return { ok: c.filter(usable), skipped: c.filter((p) => !usable(p)) };
   }
-  const skippedNote = (skipped) => (skipped.length
-    ? `Left out because some fields need fixing: ${skipped.map((p) => `“${p.name || 'Untitled'}”`).join(', ')}.`
-    : '');
+  function skippedNote(skipped) {
+    const name = (p) => `“${p.name || 'Untitled'}”`;
+    const bad = skipped.filter((p) => !profileOk(p));
+    const zero = skipped.filter((p) => profileOk(p));
+    const what = M.xScale === 'pctE' ? 'the Orange endowment' : 'the max in the risky asset';
+    return [
+      bad.length ? `Left out because some fields need fixing: ${bad.map(name).join(', ')}.` : '',
+      zero.length ? `Left out because ${what} is 0, so the share can’t be computed: ${zero.map(name).join(', ')}.` : '',
+    ].filter(Boolean).join(' ');
+  }
   const noneNote = (skipped) => skippedNote(skipped) || 'Tick “Compare” next to at least one profile to include it here.';
   const setNote = (t) => { $('viewNote').textContent = t; };
 
@@ -456,8 +479,8 @@
     const step = niceStep(hi - lo || Math.abs(hi) || 1);
     let yMin = Math.floor(lo / step) * step;
     let yMax = Math.ceil(hi / step) * step;
-    if (yMin === lo) yMin -= step / 2;
-    if (yMax === hi) yMax += step / 2;
+    if (yMin === lo) yMin -= step;
+    if (yMax === hi) yMax += step;
     return { yMin, yMax };
   }
 
@@ -467,15 +490,19 @@
       setNote(`“${p.name || 'Untitled'}” has fields that need fixing, so there is nothing to draw yet.`);
       return;
     }
+    if (!xScaleOk(p)) {
+      setNote(skippedNote([p]) + ' Switch the x axis to tokens to draw it.');
+      return;
+    }
     const pal = palette();
     const ds = stateDatasets(p, (i) => pal[i % pal.length], stateDash);
     if (M.showMean) ds.push(meanDataset(p, chrome().mean));
     $('mainChart').setAttribute('aria-label', `Final amount in each state of ${p.name} against tokens in the risky asset`);
     mainChart = newChart($('mainChart'), ds, opts({
-      xTitle: 'Tokens in the risky asset (x)',
+      xTitle: xAxisTitle(),
       yTitle: `Final amount (${unitLabel()})`,
       mode: 'index',
-      xMax: p.maxInvest,
+      xMax: xDisp(p, p.maxInvest),
     }));
     $('legend').innerHTML = legendItems(ds.map((d) => ({ color: d.borderColor, dash: d.borderDash, label: d.label, w: d.borderWidth })));
   }
@@ -500,9 +527,9 @@
     });
     $('mainChart').setAttribute('aria-label', 'Final amount in every state of every compared profile against tokens in the risky asset');
     mainChart = newChart($('mainChart'), ds, opts({
-      xTitle: 'Tokens in the risky asset (x)',
+      xTitle: xAxisTitle(),
       yTitle: `Final amount (${unitLabel()})`,
-      xMax: Math.max(...ok.map((p) => p.maxInvest)),
+      xMax: Math.max(...ok.map((p) => xDisp(p, p.maxInvest))),
     }));
     $('legend').innerHTML = groups.map((g) => `
       <div class="lg-group"><span class="lg-title"><span class="swatch" style="background:${g.color}"></span>${esc(g.name)}</span>${legendItems(g.items)}</div>`).join('');
@@ -515,7 +542,7 @@
     const pal = palette();
     const meanCol = chrome().mean;
     const { yMin, yMax } = sharedYRange(ok);
-    const xMax = Math.max(...ok.map((p) => p.maxInvest));
+    const xMax = Math.max(...ok.map((p) => xDisp(p, p.maxInvest)));
     $('multiples').innerHTML = ok.map((p, k) => `
       <figure class="mult">
         <figcaption><span class="swatch" style="background:${pal[p.color % pal.length]}"></span>${esc(p.name)}</figcaption>
@@ -526,7 +553,7 @@
       const ds = stateDatasets(p, (i) => pal[i % pal.length], stateDash);
       if (M.showMean) ds.push(meanDataset(p, meanCol));
       newChart($('multChart' + k), ds, opts({
-        xTitle: 'Tokens in the risky asset (x)',
+        xTitle: xAxisTitle(),
         yTitle: unitLabel(),
         mode: 'index',
         xMax,
@@ -547,7 +574,7 @@
       const xs = sample(p.maxInvest, 40);
       const data = xs.map((x) => {
         const m = moments(p, x);
-        return { x: conv(m.sd), y: conv(m.mean), inv: x };
+        return { x: conv(m.sd), y: conv(m.mean), inv: x, invShare: xIsPct() ? xDisp(p, x) : null };
       });
       return {
         label: p.name,
@@ -567,7 +594,11 @@
       xTitle: `Standard deviation of the final amount (${unitLabel()})`,
       yTitle: `Mean final amount (${unitLabel()})`,
       xAmt: true,
-      title: (items) => (items.length ? `${items[0].dataset.label}, x = ${fmtNum(items[0].raw.inv)} tokens` : ''),
+      title: (items) => {
+        if (!items.length) return '';
+        const r = items[0].raw;
+        return `${items[0].dataset.label}, x = ${fmtNum(r.inv)} tokens${r.invShare !== null ? ` (${fmtNum(r.invShare)}%)` : ''}`;
+      },
       label: (ctx) => `Mean ${fmtAmt(ctx.parsed.y)}, standard deviation ${fmtAmt(ctx.parsed.x)}`,
     }));
     const ink = chrome().ink;
@@ -583,14 +614,15 @@
     const pal = palette();
     const xq = isNum(M.evalX) && M.evalX >= 0 ? M.evalX : 0;
     const rows = ok.map((p) => {
-      const x = Math.min(xq, p.maxInvest);
+      const want = xFromDisp(p, xq);
+      const x = Math.min(want, p.maxInvest);
       const dist = distribution(p, x);
       const m = moments(p, x);
       const [lo, hi] = rangeOverX(p);
       const outcomes = dist.map((o) => `<span title="${esc(o.labels.join(', '))}">${fmtAmt(conv(o.v))} <small>(${fmtPct(o.w)})</small></span>`).join('<br>');
       return `<tr>
         <th scope="row"><span class="swatch" style="background:${pal[p.color % pal.length]}"></span>${esc(p.name)}</th>
-        <td>${fmtNum(x)}${x !== xq ? '<br><small>capped at max</small>' : ''}</td>
+        <td>${fmtNum(x)} tokens${xIsPct() ? `<br><small>${fmtNum(xDisp(p, x))}% of ${M.xScale === 'pctE' ? 'endowment' : 'max'}</small>` : ''}${x < want - 1e-9 ? '<br><small>capped at max</small>' : ''}</td>
         <td>${outcomes}</td>
         <td>${fmtAmt(conv(m.mean))}</td>
         <td>${fmtAmt(conv(m.sd))}</td>
@@ -602,7 +634,7 @@
       <table class="summary">
         <thead><tr>
           <th scope="col">Profile</th>
-          <th scope="col">x (tokens)</th>
+          <th scope="col">x</th>
           <th scope="col">Outcomes at x (probability)</th>
           <th scope="col">Mean</th>
           <th scope="col">Standard deviation</th>
@@ -628,6 +660,9 @@
     $('tableWrap').hidden = v !== 'table';
     $('meanOpt').hidden = !['single', 'overlay', 'multiples'].includes(v);
     $('evalOpt').hidden = v !== 'table';
+    $('xScaleOpt').hidden = v === 'meansd';
+    $('evalUnit').textContent = xIsPct() ? '%' : 'tokens';
+    $('evalWrap').className = xIsPct() ? 'iw pct' : 'iw tok';
     $('pngBtn').hidden = !chartViews.includes(v);
     $('legend').innerHTML = '';
     $('multiples').innerHTML = '';
@@ -645,6 +680,7 @@
     $('unit').value = M.settings.unit;
     $('showMean').checked = M.showMean;
     $('evalX').value = isNum(M.evalX) ? M.evalX : '';
+    $('xScale').value = M.xScale;
   }
 
   function renderAll() {
@@ -857,6 +893,12 @@
 
   $('unit').addEventListener('change', (e) => {
     M.settings.unit = e.target.value;
+    renderView();
+    save();
+  });
+
+  $('xScale').addEventListener('change', (e) => {
+    M.xScale = e.target.value;
     renderView();
     save();
   });

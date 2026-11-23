@@ -164,6 +164,7 @@ table.states { width: 100%; min-width: 540px; border-collapse: collapse; table-l
 .view-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; min-height: 34px; }
 .inline-field { display: inline-flex; align-items: center; gap: 8px; }
 .inline-field .iw { width: 150px; }
+.inline-field select { width: auto; }
 #pngBtn { margin-left: auto; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--text-secondary); margin: 4px 0 10px; }

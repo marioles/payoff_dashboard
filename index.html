@@ -53,9 +53,16 @@
     <section class="panel viewer-panel" aria-label="Charts">
       <div class="view-tabs" id="viewTabs" role="group" aria-label="View"></div>
       <div class="view-opts">
+        <label id="xScaleOpt" class="inline-field">x axis in
+          <select id="xScale">
+            <option value="tokens">Tokens</option>
+            <option value="pctE">% of Orange endowment</option>
+            <option value="pctMax">% of max in risky asset</option>
+          </select>
+        </label>
         <label id="meanOpt" class="check"><input type="checkbox" id="showMean"> Show mean</label>
         <label id="evalOpt" class="inline-field">Evaluate at x =
-          <span class="iw tok"><input id="evalX" type="number" min="0" step="any" inputmode="decimal"><span class="adorn">tokens</span></span>
+          <span class="iw tok" id="evalWrap"><input id="evalX" type="number" min="0" step="any" inputmode="decimal"><span class="adorn" id="evalUnit">tokens</span></span>
         </label>
         <button type="button" id="pngBtn">Download PNG</button>
       </div>
